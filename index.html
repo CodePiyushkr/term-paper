@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.3/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .chat-message {
+            display: block;
+            word-wrap: break-word;
+            margin-bottom: 2px;
+        }
+        .spinner {
+            display: none;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        #chatbox::-webkit-scrollbar {
+            width: 8px;
+        }
+        .chatbox::-webkit-scrollbar-track {
+            background-color: #F3F4F6;
+        }
+        .chatbox::-webkit-scrollbar-thumb {
+            background-color: #6B7280;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 h-screen flex flex-col">
+    <div id="nameModal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-gray-800 p-5 rounded-lg">
+            <h2 class="text-white text-2xl mb-4">Welcome to Chat Assistant!</h2>
+            <p class="text-gray-400 mb-4">Please enter your name to get started.</p>
+            <input id="nameInput" type="text" class="w-full py-2 px-4 mb-4 rounded bg-gray-700 text-white border border-gray-600" placeholder="Your Name" />
+            <button id="nameSubmit" class="w-full py-2 px-4 bg-green-500 text-white font-bold rounded">Submit</button>
+        </div>
+    </div>
+    <div class="flex flex-col h-full">
+        <div class="flex-grow p-4">
+            <div id="chatbox" class="flex flex-col h-full overflow-y-scroll pb-16 space-y-2"></div>
+        </div>
+        <div class="w-full bg-gray-800 py-2 px-4">
+            <form id="chatForm" class="flex w-full">
+                <input id="chatInput" type="text" class="w-3/4 py-2 px-4 rounded-l bg-gray-700 text-white border border-gray-600" placeholder="Type your message">
+                <button id="sendButton" class="w-1/4 py-2 px-4 bg-green-500 text-white font-bold rounded-r">Send</button>
+            </form>
+        </div>
+        <div class="spinner absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const nameModal = document.getElementById('nameModal');
+            const nameInput = document.getElementById('nameInput');
+            const nameSubmit = document.getElementById('nameSubmit');
+
+            nameModal.style.display = 'flex';
+
+            nameSubmit.addEventListener('click', () => {
+                const name = nameInput.value.trim();
+                if (name) {
+                    localStorage.setItem('username', name);
+                    nameModal.style.display = 'none';
+                    displayMessage(`Welcome, ${name}!`, false);
+                }
+            });
+        });
+
+        const chatForm = document.getElementById("chatForm");
+        const chatInput = document.getElementById('chatInput');
+        chatInput.focus();
+        const chatbox = document.getElementById('chatbox');
+
+        function displayMessage(message, isUser ) {
+            const msgElem = document.createElement('p');
+            msgElem.textContent = message;
+            msgElem.className = isUser  ? 'chat-message block text-right text-white mt-2 bg-green-500 rounded-tl-lg rounded-br-lg rounded-bl-sm px-4 py-2' : 'chat-message block text-white mt-2 bg-gray-600 rounded-tr-lg rounded-br-lg rounded-bl-md px-4 py-2';
+            chatbox.appendChild(msgElem);
+            chatbox.scrollTop = chatbox.scrollHeight; // Auto-scroll to the bottom
+        }
+
+        async function callApi(apiUrl, prompt) {
+            chatInput.value = "Typing...";
+            chatInput.disabled = true;
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({prompt})
+            });
+
+            chatInput.value = "";
+            chatInput.disabled = false;
+            chatInput.focus();
+            return response.json();
+        }
+
+        function handleError(error) {
+            console.error('Error:', error);
+            displayMessage('An error occurred. Please try again.', false);
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            displayMessage(message, true);
+            chatInput.value = '';
+
+            const apiUrl = 'https://backend.buildpicoapps.com/aero/run/llm-api?pk=v1-Z0FBQUFBQm1FWGFUVUtxUk96WWh6QkxTNmJmUkxzLWVPX09OYWZrTXZaSUNSMWtNZ2V1bHh2R3NPWTI3RDZORXVZamdPSUdLZFVfMlU0MVhxRkRtWkltdzRYZjd5YWhMZHc9PQ==';
+
+            try {
+                const data = await callApi(apiUrl, message);
+                if (data.status === 'success') {
+                    displayMessage(data.text, false);
+                } else {
+                    handleError(data);
+                }
+            } catch (error) {
+                handleError(error);
+            }
+        });
+    </script>
+</body>
+</html>
